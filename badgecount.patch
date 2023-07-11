@@ -1,0 +1,116 @@
+diff --color --unified --recursive --text package.orig/app/lib/main.js package.new/app/lib/main.js
+--- package.orig/app/lib/main.js	1985-10-26 04:15:00.000000000 -0400
++++ package.new/app/lib/main.js	2023-07-10 18:48:40.643053357 -0400
+@@ -172,6 +172,13 @@
+             currentBadgeCount = typeof count === 'number' ? count : 0;
+         }
+     }
++    : (0, helpers_1.isLinux)()
++    ? (count, bounce = false) => {
++      if (count !== undefined) {
++        electron_1.app.badgeCount = Number(count);
++        currentBadgeCount = Number(count);
++      }
++    }
+     : () => undefined;
+ electron_1.app.on('window-all-closed', () => {
+     log.debug('app.window-all-closed');
+diff --color --unified --recursive --text package.orig/app/package.json package.new/app/package.json
+--- package.orig/app/package.json	1985-10-26 04:15:00.000000000 -0400
++++ package.new/app/package.json	2023-07-10 18:53:22.418442964 -0400
+@@ -1,5 +1,6 @@
+ {
+   "name": "nativefier-placeholder",
++  "desktopName": "nativefier-placeholder",
+   "version": "1.0.0",
+   "description": "Placeholder for the nativefier cli to override with a target url",
+   "main": "lib/main.js",
+diff --color --unified --recursive --text package.orig/lib/build/prepareElectronApp.js package.new/lib/build/prepareElectronApp.js
+--- package.orig/lib/build/prepareElectronApp.js	1985-10-26 04:15:00.000000000 -0400
++++ package.new/lib/build/prepareElectronApp.js	2023-07-10 18:57:48.933634726 -0400
+@@ -88,6 +88,7 @@
+         minHeight: options.nativefier.minHeight,
+         minWidth: options.nativefier.minWidth,
+         name: (_a = options.packager.name) !== null && _a !== void 0 ? _a : constants_1.DEFAULT_APP_NAME,
++        desktopName: (_a = options.packager.desktopName) !== null && _a !== void 0 ? _a : constants_1.DEFAULT_APP_NAME,
+         nativefierVersion: options.nativefier.nativefierVersion,
+         osxNotarize: options.packager.osxNotarize,
+         osxSign: options.packager.osxSign,
+@@ -160,7 +161,7 @@
+     return `${normalized}-nativefier-${postFixHash}`;
+ }
+ exports.normalizeAppName = normalizeAppName;
+-function changeAppPackageJsonName(appPath, name, url) {
++function changeAppPackageJsonName(appPath, name, desktopName, url) {
+     const packageJsonPath = path.join(appPath, '/package.json');
+     const packageJson = (0, parseUtils_1.parseJson)(fs.readFileSync(packageJsonPath).toString());
+     if (!packageJson) {
+@@ -169,6 +170,7 @@
+     const normalizedAppName = normalizeAppName(name, url);
+     packageJson.name = normalizedAppName;
+     log.debug(`Updating ${packageJsonPath} 'name' field to ${normalizedAppName}`);
++    packageJson.desktopName = desktopName;
+     fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+     return normalizedAppName;
+ }
+@@ -203,8 +205,8 @@
+     catch (err) {
+         log.error('Error copying injection files.', err);
+     }
+-    const normalizedAppName = changeAppPackageJsonName(dest, options.packager.name, options.packager.targetUrl);
++    const normalizedAppName = changeAppPackageJsonName(dest, options.packager.name, options.packager.desktopName, options.packager.targetUrl);
+     options.packager.appBundleId = `com.electron.nativefier.${normalizedAppName}`;
+ }
+ exports.prepareElectronApp = prepareElectronApp;
+-//# sourceMappingURL=prepareElectronApp.js.map
+\ No newline at end of file
++//# sourceMappingURL=prepareElectronApp.js.map
+diff --color --unified --recursive --text package.orig/lib/cli.js package.new/lib/cli.js
+--- package.orig/lib/cli.js	1985-10-26 04:15:00.000000000 -0400
++++ package.new/lib/cli.js	2023-07-10 18:54:52.582440323 -0400
+@@ -91,6 +91,12 @@
+         description: 'specify the name of the app',
+         type: 'string',
+     })
++        .option('d', {
++        alias: 'desktopName',
++        defaultDescription: 'the title of the page passed via targetUrl',
++        description: 'specify the desktop name of the app',
++        type: 'string',
++    })
+         .option('no-overwrite', {
+         default: false,
+         description: 'do not overwrite output directory if it already exists',
+@@ -131,6 +137,7 @@
+         'global-shortcuts',
+         'icon',
+         'name',
++        'desktopName',
+         'no-overwrite',
+         'platform',
+         'portable',
+@@ -609,4 +616,4 @@
+         log.error('Error during build. Run with --verbose for details.', error);
+     });
+ }
+-//# sourceMappingURL=cli.js.map
+\ No newline at end of file
++//# sourceMappingURL=cli.js.map
+diff --color --unified --recursive --text package.orig/lib/options/optionsMain.js package.new/lib/options/optionsMain.js
+--- package.orig/lib/options/optionsMain.js	1985-10-26 04:15:00.000000000 -0400
++++ package.new/lib/options/optionsMain.js	2023-07-10 18:56:08.806296933 -0400
+@@ -59,6 +59,7 @@
+             electronVersion: (_e = rawOptions.electronVersion) !== null && _e !== void 0 ? _e : constants_1.DEFAULT_ELECTRON_VERSION,
+             icon: rawOptions.icon,
+             name: typeof rawOptions.name === 'string' ? rawOptions.name : '',
++            desktopName: typeof rawOptions.desktopName === 'string' ? rawOptions.desktopName : '',
+             out: (_f = rawOptions.out) !== null && _f !== void 0 ? _f : process.cwd(),
+             overwrite: rawOptions.overwrite,
+             quiet: (_g = rawOptions.quiet) !== null && _g !== void 0 ? _g : false,
+@@ -231,4 +232,4 @@
+     return platform.toLowerCase();
+ }
+ exports.normalizePlatform = normalizePlatform;
+-//# sourceMappingURL=optionsMain.js.map
+\ No newline at end of file
++//# sourceMappingURL=optionsMain.js.map
